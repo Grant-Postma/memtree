@@ -1,0 +1,93 @@
+name: Release
+
+# Push a tag like v0.1.0 to build and publish a release. The tag must match
+# VERSION in the Makefile.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Check the tag and draft the release
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Version
+        id: version
+        # Through the environment, not spliced into the script: a tag typed
+        # into the dispatch form is text, never shell.
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          version=$(sed -n 's/^VERSION = //p' Makefile | head -1)
+          if [ "$TAG" != "v$version" ]; then
+            echo "tag $TAG does not match Makefile VERSION $version" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # A draft, so nobody downloads from a release still missing a build;
+      # `publish` below makes it public once every build is in.
+      - name: Draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+              --title "memtree ${TAG#v}" --generate-notes
+          fi
+
+  macos:
+    name: Build (macOS ${{ matrix.arch }})
+    needs: release
+    strategy:
+      matrix:
+        include:
+          # Each architecture on its own native runner: the zip is named
+          # after the machine that builds it.
+          - { runner: macos-15, arch: aarch64 }
+          - { runner: macos-15-intel, arch: x86_64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - run: make test
+      - run: make zip
+
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+          VERSION: ${{ needs.release.outputs.version }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          zip=".build/bundle/memtree-$VERSION-$ARCH-macos.zip"
+          gh release upload "$TAG" "$zip" "$zip.sha256" --clobber
+
+  publish:
+    name: Publish
+    needs: [release, macos]
+    runs-on: ubuntu-24.04
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
