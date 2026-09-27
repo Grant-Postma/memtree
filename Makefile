@@ -7,7 +7,10 @@
 APPS ?= $(HOME)/Applications
 BINDIR ?= $(HOME)/.local/bin
 BUNDLE = .build/bundle/memtree.app
-VERSION = 0.1.0
+# Drawn from packaging/AppIcon.svg with sips; iconutil wants every point size
+# at 1x and 2x.
+ICONSET = .build/bundle/AppIcon.iconset
+VERSION = 0.1.1
 # Named like disktree's downloads: aarch64 for Apple Silicon.
 ARCH := $(subst arm64,aarch64,$(shell uname -m))
 ZIP = .build/bundle/memtree-$(VERSION)-$(ARCH)-macos.zip
@@ -38,9 +41,17 @@ test:
 # Rebuilt whole rather than copied over: a stale file inside a signed bundle
 # breaks its signature.
 bundle: build
-	rm -rf "$(BUNDLE)"
-	mkdir -p "$(BUNDLE)/Contents/MacOS"
+	rm -rf "$(BUNDLE)" "$(ICONSET)"
+	mkdir -p "$(BUNDLE)/Contents/MacOS" "$(BUNDLE)/Contents/Resources" "$(ICONSET)"
 	cp .build/release/memtree "$(BUNDLE)/Contents/MacOS/memtree"
+	@for size in 16 32 128 256 512; do \
+	    double=$$((size * 2)); \
+	    sips -s format png -z $$size $$size packaging/AppIcon.svg \
+	        --out "$(ICONSET)/icon_$${size}x$${size}.png" >/dev/null && \
+	    sips -s format png -z $$double $$double packaging/AppIcon.svg \
+	        --out "$(ICONSET)/icon_$${size}x$${size}@2x.png" >/dev/null || exit 1; \
+	done
+	iconutil -c icns "$(ICONSET)" -o "$(BUNDLE)/Contents/Resources/AppIcon.icns"
 	sed -e 's|@VERSION@|$(VERSION)|' packaging/Info.plist.in > "$(BUNDLE)/Contents/Info.plist"
 	plutil -lint "$(BUNDLE)/Contents/Info.plist"
 	codesign --force --sign - "$(BUNDLE)"

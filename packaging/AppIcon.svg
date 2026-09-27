@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- memtree's mark on the macOS icon grid: an 824 pt rounded square centred
+     on a 1024 pt canvas, the rest transparent. A full-bleed square would be
+     shrunk into a grey tile on macOS 26.
+
+     Three groups the way the map draws them: a bright header strip over a
+     dark body, processes as lighter tiles inside. The colours are the app's
+     own, hue by hue: body at saturation 0.40 / brightness 0.34, tiles at
+     0.38 / 0.56, headers lifted to 0.55 / 0.80 so they survive 16 px. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <!-- 64 units of the mark become 824 pt. -->
+    <g transform="translate(100 100) scale(12.875)">
+      <rect width="64" height="64" fill="#1a1a1a"/>
+
+      <rect x="5" y="5" width="30" height="54" fill="#573634"/>
+      <rect x="5" y="5" width="30" height="7" fill="#cc635c"/>
+      <rect x="7" y="14" width="26" height="22" fill="#8f5c59"/>
+      <rect x="7" y="38" width="12" height="19" fill="#8f5c59"/>
+      <rect x="21" y="38" width="12" height="19" fill="#8f5c59"/>
+
+      <rect x="38" y="5" width="21" height="27" fill="#345746"/>
+      <rect x="38" y="5" width="21" height="6" fill="#5ccc96"/>
+      <rect x="40" y="13" width="17" height="17" fill="#598f75"/>
+
+      <rect x="38" y="35" width="21" height="24" fill="#433457"/>
+      <rect x="38" y="35" width="21" height="6" fill="#8d5ccc"/>
+      <rect x="40" y="43" width="8" height="14" fill="#70598f"/>
+      <rect x="50" y="43" width="7" height="14" fill="#70598f"/>
+    </g>
+  </g>
+</svg>
